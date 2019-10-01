@@ -1,0 +1,27 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    region: us-west-2
+  vars_files:
+    - aws_keys.yml
+  tasks:
+    - name: Gather EC2 facts
+      ec2_instance_facts:
+        region: us-east-2
+        filters:
+          "tag:CHG": "CHG000000"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+      register: ec2
+    - debug: var=ec2
+
+    - name: Terminate EC2 Instance(s)
+      ec2:
+        instance_ids: '{{ item.instance_id }}'
+        state: absent
+        instance_initiated_shutdown_behavior: terminate
+        region: us-east-2
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+      with_items: "{{ ec2.instances }}"
