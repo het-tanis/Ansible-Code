@@ -1,0 +1,99 @@
+---
+
+- hosts: "{{env}}"
+  remote_user: root
+  gather_facts: False
+  vars:
+  tasks:
+
+  - name: Ensuring that /opt/dynatrace directory exists. Create it if it doesn't exist.
+    file:
+      path: /opt/dynatrace
+      state: directory
+      mode: 0755
+
+  - name: Copying over the dynatrace-wsagent-6.5.0.1289-linux-x86-64.tar file
+    copy:
+      src: /home/someuser/ansible/files/dynatrace-wsagent-6.5.0.1289-linux-x86-64.tar
+      dest: /opt/dynatrace/dynatrace.tar
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: un-tarring dynatrace.tar
+    unarchive:
+      src: /opt/dynatrace/dynatrace.tar
+      dest: /opt/dynatrace
+      remote_src: yes
+
+  - name: runnning the dynatrace installer
+    shell: cd /opt/dynatrace; /opt/dynatrace/dynatrace-wsagent-6.5.0.1289-linux-x64.sh
+    register: installer_result
+    failed_when: installer_result.rc != 0
+    changed_when: False
+  - debug: msg="{{ installer_result.stdout }}"
+
+  - name: Setting permissions on Dynatrace files
+    file:
+      path: '/opt/dynatrace/dynatrace-6.5/agent/{{ item.src }}'
+      mode: '{{ item.mode }}'
+    with_items:
+      - { src: 'conf/dynaTraceWebServerSharedMemory', mode: '666' }
+      - { src: 'conf/dtwsagent.ini', mode: '666' }
+      - { src: 'lib64/libdtagent.so', mode: '755' }
+      - { src: 'lib64/dtwsagent', mode: '755' }
+      - { src: 'downloads', mode: '777' }
+
+  - name: Setting agent-name in the dtwsagent.ini file
+    lineinfile:
+      dest: /opt/dynatrace/dynatrace-6.5/agent/conf/dtwsagent.ini
+      regexp: '^(.*)Name dtwsagent(.*)$'
+      line: "Name {{ agent_name }}"
+
+  - name: Setting Collector-Name:Port in dtwsagent.ini file
+    lineinfile:
+      path: /opt/dynatrace/dynatrace-6.5/agent/conf/dtwsagent.ini
+      regexp: '^(.*)Server localhost(.*)$'
+      line: "Server {{ collector }}:{{portnumber}}"
+
+  - name: Setting DT_RUNASUSER to svcdyntr
+    lineinfile:
+      path: /opt/dynatrace/dynatrace-6.5/init.d/dynaTraceWebServerAgent
+      regexp: '^(.*)DT_RUNASUSER=(.*)$'
+      line: 'DT_RUNASUSER=svcdyntr'
+
+  - name: Setting DT_HOME to /opt/dynatrace/dynatrace-6.5
+    lineinfile:
+      path: /opt/dynatrace/dynatrace-6.5/init.d/dynaTraceWebServerAgent
+      regexp: '^(.*)DT_HOME="/opt/dynatrace-6.5"(.*)$'
+      line: 'DT_HOME="/opt/dynatrace/dynatrace-6.5"'
+
+
+  - name: Setting dtagent_module in httpd.conf configuration
+    lineinfile:
+      path: /etc/httpd/conf/httpd.conf
+      insertafter: '^# LoadModule'
+      line: 'LoadModule dtagent_module /opt/dynatrace/dynatrace-6.5/agent/lib64/libdtagent.so'
+    notify:
+    - Restart httpd
+
+  - name: Copying over the dtwebserveragent.service file
+    copy:
+      src: /home/someuser/ansible/files/dtwebserveragent.service
+      dest: /etc/systemd/system/dtwebserveragent.service
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Enabling and starting the dtwebserveragent.service file. Reloading the systemctl daemon
+    systemd:
+      state: started
+      enabled: yes
+      daemon_reload: yes
+      name: dtwebserveragent
+
+  handlers:
+  - name: Restart httpd
+    service:
+      name: httpd
+      state: restarted
