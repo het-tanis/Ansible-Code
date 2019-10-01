@@ -1,0 +1,42 @@
+---
+
+- hosts: all
+  vars_files:
+    - '/opt/ansible/group_vars/vault.yml'
+  become: yes
+  remote_user: root
+  gather_facts: False
+  vars:
+  tasks:
+
+  - name: Create pv for disk {{ disk }}
+    shell: /usr/sbin/pvcreate {{ disk }}
+    register: pvcreate_result
+    failed_when: pvcreate_result.rc != 0
+    changed_when: False
+  - debug: msg="{{ pvcreate_result.stdout }}"
+
+  - name: Create volumegroup VolGroup01 for disk {{ disk }}
+    shell: /usr/sbin/vgcreate VolGroup01 {{ disk }}
+    register: vgcreate_result
+    failed_when: vgcreate_result.rc != 0
+    changed_when: False
+  - debug: msg="{{ vgcreate_result.stdout }}"
+
+  - name: Create a logical volume lv_opt with all space
+    lvol:
+     vg: VolGroup01
+     lv: lv_opt
+     size: 100%FREE
+
+  - name: Create an ext4 filesystem on /dev/mapper/VolGroup01-lv_opt
+    filesystem:
+     fstype: ext4
+     dev: /dev/mapper/VolGroup01-lv_opt
+
+  - name: mounting /opt/
+    mount:
+      path: /opt
+      src: /dev/mapper/VolGroup01-lv_opt
+      fstype: ext4
+      state: mounted
