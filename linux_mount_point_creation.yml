@@ -1,0 +1,32 @@
+#############################################################
+#
+#
+#############################################################
+
+
+---
+
+- hosts: all
+  vars_files:
+    - '/opt/ansible/group_vars/vault.yml'
+  become: yes
+  remote_user: root
+  gather_facts: False
+  vars:
+  tasks:
+
+  - name: Installing nfs-utils, if necessary
+    any_errors_fatal: false
+    yum:
+      name: "nfs-utils"
+      state: present
+      skip_broken: yes
+      disable_gpg_check: yes
+
+  - name: 'mounting {{ source }} to {{ mount }}. State - {{ state }}'
+    mount:
+      path: '{{ mount }}'
+      src:  '{{ source }}'
+      fstype: '{{ fstype }}'
+      opts: 'rw,bg,intr,nfsvers=3,tcp,hard,rsize=32768,wsize=32768,nolock,_netdev'
+      state: '{{ state }}'
