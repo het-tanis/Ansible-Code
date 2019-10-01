@@ -1,6 +1,7 @@
 #############################################################
-#
-#
+#Author: Scott Champine
+#Description: Create, add to /etc/fstab, and mount a filesystem
+#Date: 31 Aug 2018
 #############################################################
 
 
