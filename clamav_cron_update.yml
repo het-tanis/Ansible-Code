@@ -1,0 +1,25 @@
+---
+
+### INSTRUCTIONS AND INFORMATION ###
+#
+# 1. Run the play with the command: 'ansible-playbook agent_clamav/deploy_agent.yml --extra-vars "env=<hostlist>"'
+#
+# Author: Scott Champine
+# Objective: Deploy ClamAV cron with appropriate directories
+# Date: 7/8/2019
+#
+###
+
+- hosts: "{{ env }}"
+  remote_user: root
+  gather_facts: True
+  vars:
+    workdir: clamav_files/
+    logdir: /var/log/clamav/
+  tasks:
+
+  - name: Push over cron.daily clam scanner (Scanner is at approximately 3:05AM, at 19 nice setting)
+    copy:
+      src:  "{{ workdir }}clamav.cron"
+      dest: /etc/cron.daily/clamav
+      mode: 755
