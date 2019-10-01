@@ -1,0 +1,67 @@
+---
+
+### INSTRUCTIONS AND INFORMATION ###
+#
+# 1. Run the play with the command: 'ansible-playbook agent_clamav/remove_agent.yml --extra-vars "env=<hostlist>"'
+#
+# Author: Scott Champine
+# Objective: Remove ClamAV Scanner across all servers
+# Date: 7/15/2018
+#
+###
+
+- hosts: "{{ env }}"
+  remote_user: root
+  gather_facts: True
+  vars:
+    workdir: clamav_files/
+    logdir: /var/log/clamav/
+  tasks:
+
+
+  - name: Ensure all packages are removed for ClamAV (RHEL 7)
+    yum:
+      name:
+        - clamav
+        - clamav-server
+        - clamav-devel
+        - clamav-lib
+        - clamav-update
+        - clamav-scanner-systemd
+        - clamav-server-systemd
+        - clamd
+        - clamav-filesystem
+        - clamav-data
+      state: absent
+    when: ansible_distribution_major_version == "7"
+
+  - name: Ensure all packages are removed for ClamAV (RHEL 6)
+    yum:
+      name:
+        - clamav
+        - clamd
+      state: absent
+    when: ansible_distribution_major_version == "6"
+
+  - name: Stop the freshclam daemon (RHEL 7)
+    service:
+      name: freshclam
+      state: stopped
+    ignore_errors: yes
+    when: ansible_distribution_major_version == "7"
+
+  - name: Removing freshclam systemctl startup script (RHEL 7)
+    file:
+      path: /usr/lib/systemd/system/freshclam.service
+      state: absent
+    when: ansible_distribution_major_version == "7"
+
+  - name: Remove config for Clamd Scanning
+    file:
+      path: /etc/clamd.d/scan.conf
+      state: absent
+
+  - name: remove script for  cron.daily clam scanner
+    file:
+      path: /etc/cron.daily/clamav
+      state: absent
