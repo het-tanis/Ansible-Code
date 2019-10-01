@@ -1,0 +1,11 @@
+---
+- hosts: "{{ env }}"
+  vars:
+  gather_facts: False
+  tasks:
+
+    - name: Remove new user from all servers. {{ username }}
+      user:
+        name: "{{ username }}"
+        state: absent
+        remove: yes
