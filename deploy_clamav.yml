@@ -1,0 +1,83 @@
+---
+
+### INSTRUCTIONS AND INFORMATION ###
+#
+# 1. Run the play with the command: 'ansible-playbook agent_clamav/deploy_agent.yml --extra-vars "env=<hostlist>"'
+#
+# Author: Scott Champine
+# Objective: Deploy ClamAV Scanner across all servers
+# Date: 7/15/2019
+#
+###
+
+- hosts: "{{ env }}"
+  remote_user: root
+  gather_facts: True
+  vars:
+    workdir: clamav_files/
+    logdir: /var/log/clamav/
+  tasks:
+
+  - name: "Ensuring that logging {{ logdir }} directory exists. Create it if it doesn't exist."
+    file:
+      path: "{{ logdir }}"
+      state: directory
+      mode: 0755
+
+  - name: Ensure all packages are installed for ClamAV (RHEL 7)
+    yum:
+      name:
+        - clamav
+        - clamav-server
+        - clamav-devel
+        - clamav-lib
+        - clamav-update
+        - clamav-scanner-systemd
+        - clamav-server-systemd
+        - clamd
+        - clamav-filesystem
+        - clamav-data
+      state: latest
+      disable_gpg_check: yes
+    when: ansible_distribution_major_version == "7"
+
+  - name: Ensure all packages are installed for ClamAV (RHEL 6)
+    yum:
+      name:
+        - clamav
+        - clamd
+      state: latest
+      disable_gpg_check: yes
+    when: ansible_distribution_major_version == "6"
+
+  - name: Push over freshclam systemctl startup script (RHEL 7)
+    copy:
+      src:  "{{ workdir }}freshclam.service"
+      dest: /usr/lib/systemd/system/freshclam.service
+      mode: 644
+    when: ansible_distribution_major_version == "7"
+
+  - name: Start freshclam daemon to update virus database every 12 hours (RHEL 7)
+    service:
+      name: freshclam
+      state: started
+    when: ansible_distribution_major_version == "7"
+
+  - name: Set the clamd@scan service so that it is ready for on demand scanning (On Demand Scanning is disabled)
+    lineinfile:
+      path: /lib/systemd/system/clamd@.service
+      regexp: "^ExecStart"
+      line: "ExecStart = /usr/bin/ionice -c3 /usr/bin/nice -n19 /usr/sbin/clamd -c /etc/clamd.d/%i.conf"
+    when: ansible_distribution_major_version == "7"
+
+  - name: Push over config for Clamd Scanning (Disabled, but ready to run)
+    copy:
+      src:  "{{ workdir }}scan.conf"
+      dest: /etc/clamd.d/scan.conf
+      mode: 644
+
+  - name: Push over cron.daily clam scanner (Scanner is at approximately 3:05AM, at 19 nice setting)
+    copy:
+      src:  "{{ workdir }}clamav.cron"
+      dest: /etc/cron.daily/clamav
+      mode: 755
