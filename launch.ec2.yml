@@ -1,0 +1,107 @@
+---
+- name: Provision EC2 Instance
+  hosts: localhost
+  vars_files:
+    - aws_keys.yml
+  connection: local
+  gather_facts: True
+  tasks:
+
+  - name: Create a security group
+    ec2_group:
+      name: linuxdev_sg
+      description: The linux security group
+      region: us-east-2
+      vpc_id: vpc-0b817b63b2acae
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: 0.0.0.0/0
+        - proto: tcp
+          from_port: 80
+          to_port: 80
+          cidr_ip: 0.0.0.0/0
+        - proto: tcp
+          from_port: 443
+          to_port: 443
+          cidr_ip: 0.0.0.0/0
+      rules_egress:
+        - proto: all
+          cidr_ip: 0.0.0.0/0
+
+  - name: Launching EC2
+    ec2:
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      instance_type: t2.micro
+      image: ami-3c715059
+      assign_public_ip: yes
+      wait: true
+      region: us-east-2
+      group: linuxtest_sg
+      keypair: LinuxTest
+      count: 3
+      vpc_subnet_id: subnet-0ddee530d2de81265
+    register: ec2
+
+  - debug: var=ec2
+
+  - name: Add the newly created host so that we can further contact it
+    add_host:
+      name: "{{ item.public_ip }}"
+      groups: deploy
+    with_items: "{{ ec2.instances }}"
+
+  - name: Add tag to Instance(s)
+    ec2_tag:
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      resource: "{{ item.id }}"
+      region: us-east-2
+      state: "present"
+    with_items: "{{ ec2.instances }}"
+    args:
+      tags:
+        Type: webserver
+        CHG:  CHG000000
+
+  - name: Wait for SSH to come up
+    wait_for:
+      host: "{{ item.public_ip }}"
+      port: 22
+      state: started
+    with_items: "{{ ec2.instances }}"
+
+- hosts: deploy
+  remote_user: root
+  become: yes
+  gather_facts: no
+  pre_tasks:
+    - name: 'install python'
+      raw: 'yum -y install python'
+  tasks:
+    - name: 'Install Apache'
+      yum:
+        name: httpd
+        state: present
+
+    - name: 'Set Apache to active'
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+
+- hosts: localhost
+  tasks:
+    - name: E-mail results
+      mail:
+        host: localhost
+        port: 25
+        to:  Scott Champine <scott.champine@gmail.com>
+        subject: "Deployment Status to AWS {{ ansible_date_time.date }}"
+        body: "{{ lookup('template', 'mail_body.j2') }}"
+      delegate_to: localhost
