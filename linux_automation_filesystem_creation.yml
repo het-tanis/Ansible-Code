@@ -1,0 +1,21 @@
+---
+
+- hosts: all
+  vars_files:
+    - '/opt/ansible/group_vars/vault.yml'
+  become: yes
+  remote_user: root
+  gather_facts: False
+  vars:
+    owner: root
+    group: root
+    mode: 0755
+  tasks:
+
+  - name: "filesystem carve for {{ filesystem }}"
+    file:
+      path: "{{ filesystem }}"
+      state: directory
+      owner: "{{ owner }}"
+      group: "{{ group }}"
+      mode: "{{ mode }}"
