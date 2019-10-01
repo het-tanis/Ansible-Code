@@ -1,0 +1,34 @@
+---
+- hosts: "{{ env }}"
+  vars:
+  gather_facts: False
+  tasks:
+
+    - name: Push new user to all servers. {{ username }}
+      user:
+        name: "{{ username }}"
+        shell: /bin/bash
+        groups: wheel
+        append: yes
+        password: "{{ username | password_hash('sha512') }}"
+        update_password: on_create
+
+    - name: Ensuring that /home/{{ username }}/ansible directory exists. Create it if it doesn't exist.
+      file:
+        path: "/home/{{username}}/ansible/files"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: 0755
+
+
+    - name: Push the final project file to all servers.
+      synchronize:
+        src: /home/someuser/ansible/files/ansible_course
+        dest: "/home/{{username}}/ansible/files"
+
+    - name: Allow user to log into server.
+      lineinfile:
+        path: /etc/security/access.conf
+        line: "+ : {{ username }} : ALL"
+        insertbefore: '^-'
