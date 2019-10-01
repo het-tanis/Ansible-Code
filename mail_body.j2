@@ -1,0 +1,15 @@
+A server build has been run in AWS at {{ ansible_date_time.time }} on {{ ansible_date_time.date }}:
+
+{% for item in ec2.instances %}
+==============================================================
+Server:
+
+Public Name :   {{ item.dns_name }}
+Instance Type : {{ item.instance_type }}
+Launch Time :   {{ item.launch_time }}
+Region :        {{ item.region }}
+Security Group :{{ item.groups }}
+
+===============================================================
+
+{% endfor %}
