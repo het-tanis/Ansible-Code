@@ -1,0 +1,28 @@
+#########################################################################
+#Author: Scott Champine
+#Description: Generic script that will push any powershell script and the
+#Usage: Automation
+#Date: 31 Aug 2018
+#########################################################################
+---
+
+- hosts: all
+  vars_files:
+    - '/opt/ansible/group_vars/vault.yml'
+  vars:
+    ansible_user:
+    ansible_password:
+    ansible_port: 5985
+    ansible_connection: winrm
+    ansible_winrm_transport: kerberos
+  gather_facts: False
+  tasks:
+
+    - name: "Pushing over file {{ script }}.ps1 to test"
+      win_copy:
+        src: "/opt/ansible/files/{{ script }}.ps1"
+        dest: C:\Temp\
+
+    - name: "Run powershell file {{ script }}.ps1 directly"
+      win_shell: C:\Temp\{{ script }}.ps1 | out-file C:\Temp\{{ script }}.log
+
