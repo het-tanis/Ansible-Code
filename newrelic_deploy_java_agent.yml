@@ -1,0 +1,34 @@
+---
+
+### INSTRUCTIONS AND INFORMATION ###
+#
+# 1. Run the play with the command: 'ansible-playbook agent_newrelic/deploy_java_agent.yml --extra-vars "env=<hostlist> appname=<application_to_deploy_to>"'
+#
+# Author: Scott Champine
+# Objective: Deploy New Relic Java Agent across all servers
+# Date: 10/15/2019
+#
+###
+
+- hosts: "{{ env }}"
+  remote_user: root
+  gather_facts: True
+  vars:
+    workdir: /usr/local/scripts/ansible/files/newrelic_files
+  tasks:
+
+  - name: Make directory /opt/newrelic on all servers
+    file:
+      path: /opt/newrelic
+      state: directory
+
+  - name: Push over newrelic_files/newrelic directory to /opt/newrelic
+    copy:
+      src: "{{workdir}}/newrelic/"
+      dest: /opt/newrelic
+
+  - name: "Fix the line for {{ appname }}"
+    lineinfile:
+      path: /opt/newrelic/newrelic.yml
+      regexp: "^  app_name: cas-nonprod"
+      line: "  app_name: {{ appname }}"
