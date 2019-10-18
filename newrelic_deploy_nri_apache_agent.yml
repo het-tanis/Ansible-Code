@@ -1,0 +1,34 @@
+---
+
+### INSTRUCTIONS AND INFORMATION ###
+#
+# 1. Run the play with the command: 'ansible-playbook agent_newrelic/deploy_nri_apache_agent.yml --extra-vars "env=<hostlist>"'
+#
+# Author: Scott Champine
+# Objective: Deploy New Relic NRI Apache Agent across all servers
+# Date: 18 Oct 2019
+#
+###
+
+- hosts: "{{ env }}"
+  remote_user: root
+  gather_facts: True
+  vars:
+    workdir: /usr/local/scripts/ansible/files/newrelic_files
+  tasks:
+
+  - name: Push over nri apache deploy executable file
+    copy:
+      src: "{{workdir}}/var/db/newrelic-infra/newrelic-integrations/apache-definition.yml"
+      dest: /var/db/newrelic-infra/custom-integrations/apache-definition.yml
+
+  - name: Push over nri apache configuration file
+    copy:
+      src: "{{workdir}}/etc/newrelic-infra/integrations.d/apache-config.yml.sample"
+      dest: /etc/newrelic-infra/integrations.d/apache-config.yml
+
+  - name: Set the newrelic-infra service to on
+    service:
+      name: newrelic-infra
+      state: restarted
+      enabled: yes
