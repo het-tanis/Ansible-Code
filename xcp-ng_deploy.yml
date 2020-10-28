@@ -1,7 +1,7 @@
 ---
 - hosts: all
   vars:
-  gather_facts: True
+  gather_facts: False
   tasks:
 
 
