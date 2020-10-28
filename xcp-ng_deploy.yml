@@ -1,0 +1,33 @@
+---
+- hosts: localhost
+  vars:
+  gather_facts: True
+  tasks:
+
+
+  - name: Create a VM from a template
+    xenserver_guest:
+      hostname: "{{ hostname }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      validate_certs: no
+      folder: /testvms
+      name: "{{ deploy_name }}"
+      state: poweredon
+      template_uuid: "91d60636-6df2-7279-ec9e-c904afe5af07"
+#      disks:
+#      - size_gb: 10
+#        sr: my_sr
+#      hardware:
+#        num_cpus: 6
+#        num_cpu_cores_per_socket: 3
+#      memory_mb: 512
+#      cdrom:
+#        type: iso
+#        iso_name: guest-tools.iso
+#      networks:
+#      - name: VM Network
+#        mac: aa:bb:dd:aa:00:14
+      wait_for_ip_address: no
+    delegate_to: localhost
+    register: deploy
